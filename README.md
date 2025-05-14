@@ -56,9 +56,44 @@ The application will be available at:
 - `sites-available/`: Apache virtual host configurations
 - `conf-available/`: Apache module configurations
 
+## SSL Certificates with Let's Encrypt and Cloudflare DNS
+
+This project is configured to automatically obtain and renew wildcard SSL certificates using Let's Encrypt with Cloudflare DNS validation. This allows you to secure all subdomains with a single certificate.
+
+### Setup Instructions
+
+1. **Configure Cloudflare API Credentials**
+   - Edit the `certbot/cloudflare.ini` file with your Cloudflare email and API key
+   - Make sure this file has restricted permissions: `chmod 600 certbot/cloudflare.ini`
+
+2. **Update Environment Variables**
+   - In your `.env` file, set the following variables:
+     ```
+     CF_API_EMAIL=your-cloudflare-email@example.com
+     CF_API_KEY=your-global-api-key
+     CERTIFICATE_DOMAIN=goodvaluation.com
+     LETSENCRYPT_EMAIL=your-email@example.com
+     ```
+
+3. **Start the Services**
+   - Run `docker-compose up -d`
+   - The Certbot container will automatically obtain certificates and renew them every 12 hours if needed
+
+4. **Certificate Files**
+   - Certificates are stored in the Docker volume `letsencrypt-certs`
+   - Symbolic links are created in the `certs` directory for Apache to use
+
+### Manual Certificate Renewal
+
+If you need to manually renew the certificates, you can run:
+
+```bash
+docker-compose exec certbot /opt/renew-certs.sh
+```
+
 ## Security Considerations
 
-- Never commit the `.env` file to version control
+- Never commit the `.env` file or `certbot/cloudflare.ini` to version control
 - Keep SSL certificates and keys secure
 - Regularly update passwords and credentials
 - Review Apache configurations for security best practices

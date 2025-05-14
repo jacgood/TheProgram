@@ -10,6 +10,7 @@ services:
       - ./certs:/etc/ssl/certs
       #- /mnt/s/JobFiles:/mnt/s/JobFiles
       - ./logs:/var/log/apache2
+      - letsencrypt-certs:/etc/letsencrypt
     environment:
       - APACHE_RUN_USER=www-data
       - APACHE_RUN_GROUP=www-data
@@ -24,3 +25,22 @@ services:
       - MAIN_SSL_CERT_FILE=${MAIN_SSL_CERT_FILE}
       - MAIN_SSL_KEY_FILE=${MAIN_SSL_KEY_FILE}
     restart: always
+    depends_on:
+      - certbot
+
+  certbot:
+    image: certbot/dns-cloudflare:latest
+    volumes:
+      - letsencrypt-certs:/etc/letsencrypt
+      - ./certbot/cloudflare.ini:/etc/letsencrypt/cloudflare.ini:ro
+      - ./certbot/config:/etc/letsencrypt/config
+      - ./certbot/renew-certs.sh:/opt/renew-certs.sh:ro
+      - ./certs:/etc/ssl/certs
+    environment:
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_API_KEY=${CF_API_KEY}
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do /opt/renew-certs.sh; sleep 12h & wait $${!}; done;'"
+    restart: always
+
+volumes:
+  letsencrypt-certs:

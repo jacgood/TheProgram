@@ -23,6 +23,8 @@ logs/
 *config*.json
 *secrets*.json
 *credentials*.json
+certbot/cloudflare.ini
+
 
 # Backup files
 *.bak
