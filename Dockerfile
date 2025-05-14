@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y apache2 libapache2-mod-ldap-userdir \
     curl gnupg2 software-properties-common && \
-    a2enmod ssl dav dav_fs ldap authnz_ldap proxy proxy_http proxy_wstunnel rewrite cgid
+    a2enmod ssl dav dav_fs ldap authnz_ldap proxy proxy_http proxy_wstunnel rewrite cgi cgid actions
 
 # Add WebDNA repository
 RUN curl https://deb.webdna.us/ubuntu23/webdna.key | gpg --dearmor > webdna.gpg && \
@@ -20,32 +20,28 @@ RUN mkdir -p /usr/local/bin && \
     echo 'exit 0' >> /usr/local/bin/systemctl && \
     chmod +x /usr/local/bin/systemctl && \
     apt-get install -y libapache2-mod-webdna=8.6.5 || true && \
-    rm /usr/local/bin/systemctl && \
-    # Manually enable WebDNA module in case it failed during package installation
-    a2enmod webdna || true && \
-    # Create WebDNA directories if needed
-    mkdir -p /var/www/html/WebCatalog
+    rm /usr/local/bin/systemctl
 
 # Copy Apache configurations
 COPY apache2.conf /etc/apache2/apache2.conf
-COPY conf-available/goodval.conf /etc/apache2/conf-available/goodval.conf
-#COPY conf-available/goodval.wfd.conf /etc/apache2/conf-available/goodval.wfd.conf
+COPY sites-available/goodval.conf /etc/apache2/sites-available/goodval.conf
+COPY sites-available/goodval.wfd.conf /etc/apache2/sites-available/goodval.wfd.conf
+COPY conf-available/webdna.conf /etc/apache2/conf-available/webdna.conf
+COPY conf-available/webdna-fix.conf /etc/apache2/conf-available/webdna-fix.conf
 COPY sites-available/000-default.conf /etc/apache2/sites-available/000-default.conf
-COPY sites-available/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf
 
-# Add WebDNA Apache configuration if not already handled by package
-RUN echo "AddHandler webdna-handler .dna" >> /etc/apache2/apache2.conf && \
-    echo "Action webdna-handler /cgi-bin/webdna" >> /etc/apache2/apache2.conf
-
-#Enable confs
-RUN a2enconf goodval.conf 
-#RUN a2enconf goodval.wfd.conf 
-
-# Enable sites
-RUN a2ensite default-ssl.conf 000-default.conf
+# Enable configurations
+RUN a2enconf webdna.conf && \
+    a2enconf webdna-fix.conf && \
+    a2enmod webdna cgi cgid && \
+    a2ensite 000-default.conf goodval.conf goodval.wfd.conf
 
 # Copy SSL Certificates
 COPY certs/ /etc/ssl/certs/
+
+# Copy and enable startup script
+COPY startup.sh /startup.sh
+RUN chmod +x /startup.sh
 
 # Ensure proper permissions for web directories
 RUN chown -R www-data:www-data /var/www/html && \
@@ -54,5 +50,5 @@ RUN chown -R www-data:www-data /var/www/html && \
 # Expose ports
 EXPOSE 80 443
 
-# Start Apache
-CMD ["apachectl", "-D", "FOREGROUND"]
+# Start Apache and WebDNA
+CMD ["/startup.sh"]
